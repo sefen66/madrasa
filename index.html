@@ -480,40 +480,33 @@
         </section>
     </div>
 
-<!-- نهاية ملف HTML قبل </body> -->
-<script>
-// بيانات الاعتماد - سيتم تعبئتها لاحقاً
-let SPREADSHEET_ID = '1vBwAEm_EFU_vUt-hwBhv22TuqL2MxEz_bSXI75_4Mas';
-let CLIENT_ID = '532693118396-bi5rgmhr5ulu8rmveh17ic69o9424f9t.apps.googleusercontent.com';
-let API_KEY = 'AIzaSyAfn6bcKA2oD6MR2JwDTwtqRz7Y4VGuffk';
+    <script>
+        // للوصول إلى البيانات الخاصة، تحتاج إلى استخدام OAuth 2.0
+const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
-// دالة للاتصال بجوجل شيتس
-async function connectToGoogleSheets() {
-  try {
-    // تحميل مكتبة جوجل
-    await new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://apis.google.com/js/api.js';
-      script.onload = resolve;
-      document.head.appendChild(script);
-    });
+// function authenticateWithOAuth() {
+//   // تنفيذ تدفق مصادقة OAuth 2.0 هنا
+// }
+        const SPREADSHEET_ID = '1vBwAEm_EFU_vUt-hwBhv22TuqL2MxEz_bSXI75_4Mas';
+const CLIENT_ID = '532693118396-bi5rgmhr5ulu8rmveh17ic69o9424f9t.apps.googleusercontent.com';
+const API_KEY = 'AIzaSyAfn6bcKA2oD6MR2JwDTwtqRz7Y4VGuffk';
 
-    // تهيئة API
-    await new Promise((resolve, reject) => {
-      gapi.load('client', () => {
-        gapi.client.init({
-          apiKey: API_KEY,
-          discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-        }).then(resolve).catch(reject);
+// دالة للربط مع Google Sheets
+function connectToGoogleSheets() {
+  gapi.load('client', async () => {
+    try {
+      await gapi.client.init({
+        apiKey: API_KEY,
+        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
       });
-    });
-    
-    console.log('تم الاتصال بنجاح مع Google Sheets API');
-    return true;
-  } catch (error) {
-    console.error('خطأ في الاتصال:', error);
-    return false;
-  }
+      
+      console.log('تم الاتصال بنجاح مع Google Sheets API');
+      loadDataFromSheets();
+    } catch (error) {
+      console.error('خطأ في الاتصال:', error);
+      alert('حدث خطأ في الاتصال بجوجل شيت. تأكد من صحة المفتاح والمعرف.');
+    }
+  });
 }
 
 // دالة لتحميل البيانات من Google Sheets
@@ -618,7 +611,68 @@ async function addStudentToSheet(student) {
   }
 }
 
-// تعديل دالة إضافة الطالب لدعم المزامنة
+// دالة لإضافة أسبوع إلى Google Sheets
+async function addWeekToSheet(week) {
+  try {
+    const response = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'الأسابيع!A:A',
+    });
+
+    const nextRow = response.result.values ? response.result.values.length + 1 : 2;
+
+    const values = [
+      [week.id, week.name, week.date]
+    ];
+
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `الأسابيع!A${nextRow}:C${nextRow}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values }
+    });
+
+    console.log('تم إضافة الأسبوع إلى Google Sheets');
+  } catch (error) {
+    console.error('خطأ في إضافة الأسبوع:', error);
+    throw error;
+  }
+}
+
+// دالة لتسجيل الحضور في Google Sheets
+async function addAttendanceToSheet(attendanceData) {
+  try {
+    const response = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'الحضور!A:A',
+    });
+
+    const nextRow = response.result.values ? response.result.values.length + 1 : 2;
+
+    const values = [
+      [
+        attendanceData.studentId,
+        attendanceData.weekId,
+        attendanceData.date,
+        attendanceData.status
+      ]
+    ];
+
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `الحضور!A${nextRow}:D${nextRow}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values }
+    });
+
+    console.log('تم تسجيل الحضور في Google Sheets');
+  } catch (error) {
+    console.error('خطأ في تسجيل الحضور:', error);
+    throw error;
+  }
+}
+
+// تعديل دوال الإضافة لتشمل التخزين في Google Sheets
 document.getElementById('studentForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   
@@ -651,89 +705,379 @@ document.getElementById('studentForm').addEventListener('submit', async (e) => {
   document.getElementById('studentForm').reset();
 });
 
-// إضافة واجهة لإدخال بيانات الاعتماد
-function addCredentialsForm() {
-  const formHtml = `
-    <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.2); z-index: 1000;">
-      <h3>إعدادات الاتصال بجوجل شيتس</h3>
-      <div class="form-group">
-        <label>معرف الجدول (SPREADSHEET_ID)</label>
-        <input type="text" id="inputSpreadsheetId" placeholder="مثل: 1vBwAEm_EFU_vUt-hwBhv22TuqL2MxEz_bSXI75_4Mas">
-      </div>
-      <div class="form-group">
-        <label>معرف العميل (CLIENT_ID)</label>
-        <input type="text" id="inputClientId" placeholder="مثل: 532693118396-bi5rgmhr5ulu8rmveh17ic69o9424f9t.apps.googleusercontent.com">
-      </div>
-      <div class="form-group">
-        <label>مفتاح API (API_KEY)</label>
-        <input type="text" id="inputApiKey" placeholder="مثل: AIzaSyAfn6bcKA2oD6MR2JwDTwtqRz7Y4VGuffk">
-      </div>
-      <button class="btn" onclick="saveCredentials()">حفظ والتوصيل</button>
-    </div>
-    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999;"></div>
-  `;
-  
-  document.body.insertAdjacentHTML('beforeend', formHtml);
+// إضافة زر للاتصال بـ Google Sheets في واجهة المستخدم
+const connectButton = document.createElement('button');
+connectButton.textContent = 'الاتصال بـ Google Sheets';
+connectButton.className = 'btn';
+connectButton.style.margin = '10px';
+connectButton.onclick = connectToGoogleSheets;
+document.querySelector('nav .container').appendChild(connectButton);
+
+// تحميل مكتبة Google API
+function loadGAPI() {
+  const script = document.createElement('script');
+  script.src = 'https://apis.google.com/js/api.js';
+  script.onload = () => {
+    console.log('تم تحميل Google API');
+  };
+  document.head.appendChild(script);
 }
 
-// حفظ بيانات الاعتماد
-function saveCredentials() {
-  SPREADSHEET_ID = document.getElementById('inputSpreadsheetId').value;
-  CLIENT_ID = document.getElementById('inputClientId').value;
-  API_KEY = document.getElementById('inputApiKey').value;
-  
-  localStorage.setItem('google_sheets_credentials', JSON.stringify({
-    SPREADSHEET_ID, CLIENT_ID, API_KEY
-  }));
-  
-  // إزالة نموذج الإدخال
-  document.querySelector('#credentialsForm').remove();
-  document.querySelector('#credentialsOverlay').remove();
-  
-  // محاولة الاتصال
-  connectToGoogleSheets().then(success => {
-    if (success) {
-      loadDataFromSheets();
-    }
-  });
-}
-
-// تحميل بيانات الاعتماد المحفوظة
-function loadSavedCredentials() {
-  const saved = localStorage.getItem('google_sheets_credentials');
-  if (saved) {
-    const credentials = JSON.parse(saved);
-    SPREADSHEET_ID = credentials.SPREADSHEET_ID;
-    CLIENT_ID = credentials.CLIENT_ID;
-    API_KEY = credentials.API_KEY;
-    
-    connectToGoogleSheets().then(success => {
-      if (success) {
-        loadDataFromSheets();
-      }
-    });
-  } else {
-    addCredentialsForm();
-  }
-}
-
-// بدء التحميل عند بدء التشغيل
-window.addEventListener('DOMContentLoaded', () => {
-  // الكود الأصلي لتحميل البيانات المحلية
-  renderStudentsList();
-  renderWeeksList();
-  updateWeekSelect();
-  updateReportWeekSelect();
-  
-  // محاولة تحميل بيانات الاعتماد والاتصال بجوجل شيتس
-  loadSavedCredentials();
-});
-</script>
+// تحميل المكتبة عند بدء التطبيق
+loadGAPI();
+        // بيانات التخزين
+        let students = JSON.parse(localStorage.getItem('students')) || [];
+        let weeks = JSON.parse(localStorage.getItem('weeks')) || [];
+        let attendance = JSON.parse(localStorage.getItem('attendance')) || {};
+        
+        // عناصر DOM
+        const navLinks = document.querySelectorAll('.nav-link');
+        const sections = document.querySelectorAll('.section');
+        
+        // التنقل بين الأقسام
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const sectionId = link.getAttribute('data-section');
+                
+                // إزالة النشاط من جميع الروابط والأقسام
+                navLinks.forEach(l => l.classList.remove('active'));
+                sections.forEach(s => s.classList.remove('active'));
+                
+                // إضافة النشاط للرابط والقسم المحدد
+                link.classList.add('active');
+                document.getElementById(sectionId).classList.add('active');
+                
+                // إذا كان القسم هو الأسابيع، قم بتحديث القائمة
+                if (sectionId === 'weeks') {
+                    renderWeeksList();
+                }
+                
+                // إذا كان القسم هو الحضور، قم بتحديث القائمة
+                if (sectionId === 'attendance') {
+                    updateWeekSelect();
+                }
+                
+                // إذا كان القسم هو التقارير، قم بتحديث القائمة
+                if (sectionId === 'reports') {
+                    updateReportWeekSelect();
+                }
+            });
+        });
+        
+        // إضافة طالب جديد
+        document.getElementById('studentForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const student = {
+                id: Date.now(),
+                name: document.getElementById('studentName').value,
+                guardian: document.getElementById('guardianName').value,
+                studentPhone: document.getElementById('studentPhone').value,
+                fatherPhone: document.getElementById('fatherPhone').value,
+                motherPhone: document.getElementById('motherPhone').value
+            };
+            
+            students.push(student);
+            localStorage.setItem('students', JSON.stringify(students));
+            
+            renderStudentsList();
+            document.getElementById('studentForm').reset();
+            
+            alert('تم إضافة الطالب بنجاح!');
+        });
+        
+        // عرض قائمة الطلاب
+        function renderStudentsList() {
+            const tbody = document.getElementById('studentsTableBody');
+            tbody.innerHTML = '';
+            
+            students.forEach(student => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${student.name}</td>
+                    <td>${student.guardian}</td>
+                    <td>${student.studentPhone || 'غير متوفر'}</td>
+                    <td>${student.fatherPhone}</td>
+                    <td>${student.motherPhone}</td>
+                    <td>
+                        <button class="btn btn-warning" onclick="editStudent(${student.id})">تعديل</button>
+                        <button class="btn" style="background: #e74c3c; color: white;" onclick="deleteStudent(${student.id})">حذف</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        // حذف طالب
+        function deleteStudent(id) {
+            if (confirm('هل أنت متأكد من حذف هذا الطالب؟')) {
+                students = students.filter(student => student.id !== id);
+                localStorage.setItem('students', JSON.stringify(students));
+                renderStudentsList();
+            }
+        }
+        
+        // إضافة أسبوع جديد
+        document.getElementById('weekForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const week = {
+                id: Date.now(),
+                name: document.getElementById('weekName').value,
+                date: document.getElementById('weekDate').value,
+                studentsCount: students.length
+            };
+            
+            weeks.push(week);
+            localStorage.setItem('weeks', JSON.stringify(weeks));
+            
+            // إنشاء سجل حضور افتراضي لهذا الأسبوع
+            attendance[week.id] = {};
+            students.forEach(student => {
+                attendance[week.id][student.id] = 'present'; // حضور افتراضي
+            });
+            localStorage.setItem('attendance', JSON.stringify(attendance));
+            
+            renderWeeksList();
+            document.getElementById('weekForm').reset();
+            
+            alert('تم إضافة الأسبوع بنجاح!');
+        });
+        
+        // عرض قائمة الأسابيع
+        function renderWeeksList() {
+            const tbody = document.getElementById('weeksTableBody');
+            tbody.innerHTML = '';
+            
+            weeks.forEach(week => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${week.name}</td>
+                    <td>${week.date}</td>
+                    <td>${week.studentsCount}</td>
+                    <td>
+                        <button class="btn" style="background: #e74c3c; color: white;" onclick="deleteWeek(${week.id})">حذف</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        // حذف أسبوع
+        function deleteWeek(id) {
+            if (confirm('هل أنت متأكد من حذف هذا الأسبوع؟ سيتم حذف جميع سجلات الحضور المرتبطة به.')) {
+                weeks = weeks.filter(week => week.id !== id);
+                localStorage.setItem('weeks', JSON.stringify(weeks));
+                
+                delete attendance[id];
+                localStorage.setItem('attendance', JSON.stringify(attendance));
+                
+                renderWeeksList();
+            }
+        }
+        
+        // تحديث قائمة الأسابيع في select
+        function updateWeekSelect() {
+            const select = document.getElementById('weekSelect');
+            select.innerHTML = '<option value="">-- اختر أسبوع --</option>';
+            
+            weeks.forEach(week => {
+                const option = document.createElement('option');
+                option.value = week.id;
+                option.textContent = `${week.name} (${week.date})`;
+                select.appendChild(option);
+            });
+        }
+        
+        // عند اختيار أسبوع لتسجيل الحضور
+        document.getElementById('weekSelect').addEventListener('change', function() {
+            const weekId = this.value;
+            const container = document.getElementById('attendanceTableContainer');
+            
+            if (weekId) {
+                container.style.display = 'block';
+                renderAttendanceTable(weekId);
+            } else {
+                container.style.display = 'none';
+            }
+        });
+        
+        // عرض جدول الحضور والغياب
+        function renderAttendanceTable(weekId) {
+            const tbody = document.getElementById('attendanceTableBody');
+            tbody.innerHTML = '';
+            
+            students.forEach(student => {
+                const status = attendance[weekId] && attendance[weekId][student.id] ? attendance[weekId][student.id] : 'present';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${student.name}</td>
+                    <td class="attendance-check">
+                        <input type="radio" name="attendance-${student.id}" value="present" ${status === 'present' ? 'checked' : ''}>
+                    </td>
+                    <td class="attendance-check">
+                        <input type="radio" name="attendance-${student.id}" value="absent" ${status === 'absent' ? 'checked' : ''}>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        // حفظ سجل الحضور
+        document.getElementById('saveAttendance').addEventListener('click', function() {
+            const weekId = document.getElementById('weekSelect').value;
+            
+            if (!weekId) {
+                alert('يرجى اختيار أسبوع أولاً');
+                return;
+            }
+            
+            students.forEach(student => {
+                const selectedValue = document.querySelector(`input[name="attendance-${student.id}"]:checked`).value;
+                attendance[weekId][student.id] = selectedValue;
+            });
+            
+            localStorage.setItem('attendance', JSON.stringify(attendance));
+            alert('تم حفظ سجل الحضور بنجاح!');
+        });
+        
+        // البحث عن طالب
+        document.getElementById('searchButton').addEventListener('click', function() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const results = students.filter(student => 
+                student.name.toLowerCase().includes(query) || 
+                student.guardian.toLowerCase().includes(query)
+            );
+            
+            displaySearchResults(results);
+        });
+        
+        // عرض نتائج البحث
+        function displaySearchResults(results) {
+            const container = document.getElementById('searchResults');
+            
+            if (results.length === 0) {
+                container.innerHTML = '<div class="alert">لم يتم العثور على نتائج</div>';
+                return;
+            }
+            
+            let html = '<div class="cards-container">';
+            
+            results.forEach(student => {
+                // حساب عدد مرات الغياب
+                let absentCount = 0;
+                for (const weekId in attendance) {
+                    if (attendance[weekId][student.id] === 'absent') {
+                        absentCount++;
+                    }
+                }
+                
+                html += `
+                    <div class="card">
+                        <h3 class="card-title">${student.name}</h3>
+                        <div class="card-detail"><strong>ولي الأمر:</strong> ${student.guardian}</div>
+                        <div class="card-detail"><strong>هاتف الطالب:</strong> ${student.studentPhone || 'غير متوفر'}</div>
+                        <div class="card-detail"><strong>هاتف الأب:</strong> ${student.fatherPhone}</div>
+                        <div class="card-detail"><strong>هاتف الأم:</strong> ${student.motherPhone}</div>
+                        <div class="card-detail"><strong>عدد مرات الغياب:</strong> ${absentCount}</div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        // تحديث قائمة الأسابيع في تقارير
+        function updateReportWeekSelect() {
+            const select = document.getElementById('reportWeekSelect');
+            select.innerHTML = '<option value="">-- اختر أسبوع --</option>';
+            
+            weeks.forEach(week => {
+                const option = document.createElement('option');
+                option.value = week.id;
+                option.textContent = `${week.name} (${week.date})`;
+                select.appendChild(option);
+            });
+        }
+        
+        // عند اختيار أسبوع لعرض التقرير
+        document.getElementById('reportWeekSelect').addEventListener('change', function() {
+            const weekId = this.value;
+            
+            if (weekId) {
+                displayAttendanceReport(weekId);
+            } else {
+                document.getElementById('reportResults').innerHTML = '';
+            }
+        });
+        
+        // عرض تقرير الحضور والغياب
+        function displayAttendanceReport(weekId) {
+            const week = weeks.find(w => w.id == weekId);
+            const weekAttendance = attendance[weekId] || {};
+            
+            let presentCount = 0;
+            let absentCount = 0;
+            
+            for (const studentId in weekAttendance) {
+                if (weekAttendance[studentId] === 'present') {
+                    presentCount++;
+                } else {
+                    absentCount++;
+                }
+            }
+            
+            let html = `
+                <h3>تقرير ${week.name}</h3>
+                <div class="card">
+                    <div class="card-detail"><strong>تاريخ الأسبوع:</strong> ${week.date}</div>
+                    <div class="card-detail"><strong>عدد الطلاب:</strong> ${week.studentsCount}</div>
+                    <div class="card-detail"><strong>الحضور:</strong> ${presentCount}</div>
+                    <div class="card-detail"><strong>الغياب:</strong> ${absentCount}</div>
+                </div>
+                
+                <h3 style="margin-top: 20px;">تفاصيل الغياب</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>اسم الطالب</th>
+                            <th>الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            students.forEach(student => {
+                const status = weekAttendance[student.id] === 'absent' ? 'غائب' : 'حاضر';
+                const statusClass = weekAttendance[student.id] === 'absent' ? 'absent' : 'present';
+                
+                html += `
+                    <tr>
+                        <td>${student.name}</td>
+                        <td class="${statusClass}">${status}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('reportResults').innerHTML = html;
+        }
+        
+        // تهيئة البيانات عند تحميل الصفحة
+        window.addEventListener('DOMContentLoaded', () => {
+            renderStudentsList();
+            renderWeeksList();
+            updateWeekSelect();
+            updateReportWeekSelect();
+        });
+    </script>
 </body>
-
 </html>
-
-
-
 
