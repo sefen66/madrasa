@@ -515,7 +515,7 @@ async function loadDataFromSheets() {
     // تحميل بيانات الطلاب
     const studentsResponse = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'الطلاب!A2:F',
+      range: 'students!A2:F',
     });
     
     if (studentsResponse.result.values) {
@@ -534,7 +534,7 @@ async function loadDataFromSheets() {
     // تحميل بيانات الأسابيع
     const weeksResponse = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'الأسابيع!A2:C',
+      range: 'weeks!A2:C',
     });
 
     if (weeksResponse.result.values) {
@@ -550,7 +550,7 @@ async function loadDataFromSheets() {
     // تحميل بيانات الحضور
     const attendanceResponse = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'الحضور!A2:D',
+      range: 'attendance!A2:D',
     });
 
     if (attendanceResponse.result.values) {
@@ -1080,5 +1080,6 @@ loadGAPI();
     </script>
 </body>
 </html>
+
 
 
