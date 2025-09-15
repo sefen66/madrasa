@@ -484,49 +484,47 @@
     <script>
         // للوصول إلى البيانات الخاصة، تحتاج إلى استخدام OAuth 2.0
 // تأكد من أنك تقوم بتهيئة API بشكل صحيح
-<script src="https://apis.google.com/js/api.js"></script>
-<script>
-const SPREADSHEET_ID = '1vBwAEm_EFU_vUt-hwBhv22TuqL2MxEz_bSXI75_4Mas';
+
+
+        // للوصول إلى البيانات الخاصة، تحتاج إلى استخدام OAuth 2.0
+// تأكد من أنك تقوم بتهيئة API بشكل صحيح
+async function connectToGoogleSheets() {
+  try {
+    await gapi.client.init({
+      apiKey: API_KEY,
+      discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+      scope: 'https://www.googleapis.com/auth/spreadsheets'
+    });
+    
+    console.log('تم الاتصال بنجاح مع Google Sheets API');
+    return true;
+  } catch (error) {
+    console.error('خطأ في الاتصال:', error);
+    return false;
+  }
+}
+        const SPREADSHEET_ID = '1vBwAEm_EFU_vUt-hwBhv22TuqL2MxEz_bSXI75_4Mas';
 const CLIENT_ID = '15653801839-f6nseio1vfd9on6p9002a4dde2jlf4bs.apps.googleusercontent.com';
 const API_KEY = 'AIzaSyC_Iix8eXx4rkJBHV1tBkEJFChtdN7yUsw';
 
-async function connectToGoogleSheets() {
-  gapi.load('client:auth2', async () => {
+// دالة للربط مع Google Sheets
+function connectToGoogleSheets() {
+  gapi.load('client', async () => {
     try {
       await gapi.client.init({
         apiKey: API_KEY,
-        clientId: CLIENT_ID,
         discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-        scope: 'https://www.googleapis.com/auth/spreadsheets'
       });
-
-      // تسجيل الدخول
-      await gapi.auth2.getAuthInstance().signIn();
-      console.log('✅ تم تسجيل الدخول بنجاح!');
-
-      // إضافة بيانات جديدة كاختبار
-      const response = await gapi.client.sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: 'Sheet1!A:A', // هيضيف في العمود A تحت آخر صف
-        valueInputOption: 'RAW',
-        insertDataOption: 'INSERT_ROWS',
-        resource: {
-          values: [
-            ['بيانات من الويب', new Date().toLocaleString()]
-          ]
-        }
-      });
-
-      console.log('✅ البيانات اتضافت:', response);
-      alert('تمت إضافة صف جديد في Google Sheets 🎉');
-
+      
+      console.log('تم الاتصال بنجاح مع Google Sheets API');
+      loadDataFromSheets();
     } catch (error) {
-      console.error('❌ خطأ في الاتصال:', error);
-      alert('حدث خطأ في الاتصال بجوجل شيت. تأكد من صحة الإعدادات.');
+      console.error('خطأ في الاتصال:', error);
+      alert('حدث خطأ في الاتصال بجوجل شيت. تأكد من صحة المفتاح والمعرف.');
     }
   });
 }
-</script>
+
 
 <button onclick="connectToGoogleSheets()">إرسال بيانات للشيت</button>
 
@@ -1149,7 +1147,6 @@ document.getElementById('studentForm').addEventListener('submit', async (e) => {
     </script>
 </body>
 </html>
-
 
 
 
