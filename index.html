@@ -328,7 +328,15 @@
             </ul>
         </div>
     </nav>
-    
+    <!-- في قسم navigation داخل وسم <nav> -->
+<div style="display: flex; align-items: center; margin-right: auto;">
+    <button id="connectSheetsButton" class="btn" style="background-color: #4CAF50;">
+        <i class="fas fa-sync-alt"></i> الاتصال بـ Google Sheets
+    </button>
+    <span id="connectionStatus" style="margin-right: 10px; color: #e74c3c;">
+        <i class="fas fa-times-circle"></i> غير متصل
+    </span>
+</div>
     <div class="container">
         <!-- قسم إدارة الطلاب -->
         <section id="students" class="section active">
@@ -1131,9 +1139,228 @@ document.getElementById('studentForm').addEventListener('submit', async (e) => {
   // باقي الكود...
 });
         
+  // حالة الاتصال
+let isConnectedToSheets = false;
+
+// عناصر واجهة المستخدم
+const connectButton = document.getElementById('connectSheetsButton');
+const connectionStatus = document.getElementById('connectionStatus');
+
+// دالة لتحديث حالة الاتصال في الواجهة
+function updateConnectionStatus(connected) {
+    isConnectedToSheets = connected;
+    if (connected) {
+        connectionStatus.innerHTML = '<i class="fas fa-check-circle"></i> متصل';
+        connectionStatus.style.color = '#2ecc71';
+        connectButton.style.backgroundColor = '#3498db';
+        connectButton.innerHTML = '<i class="fas fa-sync-alt"></i> مزامنة البيانات';
+    } else {
+        connectionStatus.innerHTML = '<i class="fas fa-times-circle"></i> غير متصل';
+        connectionStatus.style.color = '#e74c3c';
+        connectButton.style.backgroundColor = '#4CAF50';
+        connectButton.innerHTML = '<i class="fas fa-plug"></i> الاتصال بـ Google Sheets';
+    }
+}
+
+// دالة محسنة للاتصال بـ Google Sheets
+async function connectToGoogleSheets() {
+    try {
+        // تحميل مكتبة Google API إذا لم تكن محملة
+        if (typeof gapi === 'undefined') {
+            await loadGAPI();
+            // الانتظار حتى يتم تحميل المكتبة
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+        await gapi.client.init({
+            apiKey: API_KEY,
+            discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+        });
+        
+        console.log('تم الاتصال بنجاح مع Google Sheets API');
+        
+        // اختبار الاتصال بمحاولة قراءة البيانات
+        try {
+            await gapi.client.sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: 'students!A1:A1', // نطاق صغير للاختبار
+            });
+            console.log('تم التحقق من صلاحيات الوصول');
+            updateConnectionStatus(true);
+            return true;
+        } catch (error) {
+            console.error('خطأ في صلاحيات الوصول:', error);
+            showError('تم الاتصال ولكن هناك مشكلة في الصلاحيات. تأكد من مشاركة الجدول مع الحساب المناسب.');
+            updateConnectionStatus(false);
+            return false;
+        }
+    } catch (error) {
+        console.error('خطأ في الاتصال:', error);
+        showError('فشل في الاتصال بـ Google Sheets. تأكد من صحة المفتاح والمعرف.');
+        updateConnectionStatus(false);
+        return false;
+    }
+}
+
+// دالة لعرض الأخطاء بطريقة واضحة
+function showError(message) {
+    // إنشاء عنصر للخطأ إذا لم يكن موجوداً
+    let errorDiv = document.getElementById('connectionError');
+    if (!errorDiv) {
+        errorDiv = document.createElement('div');
+        errorDiv.id = 'connectionError';
+        errorDiv.style.cssText = 'position: fixed; top: 100px; right: 20px; background: #e74c3c; color: white; padding: 15px; border-radius: 5px; z-index: 1000; max-width: 300px;';
+        document.body.appendChild(errorDiv);
+    }
+    
+    errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+    
+    // إخفاء الخطأ تلقائياً بعد 5 ثوان
+    setTimeout(() => {
+        errorDiv.style.display = 'none';
+    }, 5000);
+}
+
+// دالة لمزامنة جميع البيانات المحلية مع Google Sheets
+async function syncAllDataWithSheets() {
+    if (!isConnectedToSheets) {
+        const connected = await connectToGoogleSheets();
+        if (!connected) return false;
+    }
+    
+    try {
+        // مزامنة الطلاب
+        for (const student of students) {
+            await addStudentToSheet(student);
+        }
+        
+        // مزامنة الأسابيع
+        for (const week of weeks) {
+            await addWeekToSheet(week);
+        }
+        
+        // مزامنة الحضور (هذه可能需要 معالجة خاصة)
+        for (const weekId in attendance) {
+            for (const studentId in attendance[weekId]) {
+                await addAttendanceToSheet({
+                    studentId: studentId,
+                    weekId: weekId,
+                    date: new Date().toISOString().split('T')[0],
+                    status: attendance[weekId][studentId]
+                });
+            }
+        }
+        
+        alert('تم مزامنة جميع البيانات مع Google Sheets بنجاح!');
+        return true;
+    } catch (error) {
+        console.error('خطأ في المزامنة:', error);
+        showError('حدث خطأ أثناء المزامنة. بعض البيانات قد لا تكون متزامنة.');
+        return false;
+    }
+}
+
+// إضافة event listener للزر
+connectButton.addEventListener('click', async () => {
+    if (isConnectedToSheets) {
+        // إذا كان متصلاً بالفعل، قم بالمزامنة
+        await syncAllDataWithSheets();
+    } else {
+        // إذا لم يكن متصلاً، حاول الاتصال
+        await connectToGoogleSheets();
+    }
+});
+
+// تعديل دالة إضافة الطالب لتحديد حالة الاتصال
+document.getElementById('studentForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const student = {
+        id: Date.now(),
+        name: document.getElementById('studentName').value,
+        guardian: document.getElementById('guardianName').value,
+        studentPhone: document.getElementById('studentPhone').value,
+        fatherPhone: document.getElementById('fatherPhone').value,
+        motherPhone: document.getElementById('motherPhone').value
+    };
+    
+    students.push(student);
+    localStorage.setItem('students', JSON.stringify(students));
+    
+    // إضافة إلى Google Sheets إذا كان متصلاً
+    if (isConnectedToSheets) {
+        try {
+            await addStudentToSheet(student);
+            alert('تم إضافة الطالب ومزامنة البيانات مع Google Sheets بنجاح!');
+        } catch (error) {
+            console.error('خطأ في المزامنة:', error);
+            alert('تم إضافة الطالب ولكن حدث خطأ في المزامنة مع Google Sheets.');
+        }
+    } else {
+        alert('تم إضافة الطالب محلياً. يرجى الاتصال بـ Google Sheets للمزامنة.');
+    }
+    
+    renderStudentsList();
+    document.getElementById('studentForm').reset();
+});
+
+// محاولة الاتصال التلقائي عند تحميل الصفحة
+window.addEventListener('DOMContentLoaded', async () => {
+    // ... الكود الأصلي لتحميل البيانات المحلية
+    
+    // محاولة الاتصال التلقائي بـ Google Sheets
+    if (SPREADSHEET_ID && API_KEY) {
+        const connected = await connectToGoogleSheets();
+        if (connected) {
+            // إذا اتصل بنجاح، جلب البيانات من Google Sheets
+            await loadDataFromSheets();
+        }
+    }
+    
+    // إضافة زر المزامنة إذا لم يكن موجوداً
+    if (!document.getElementById('connectSheetsButton')) {
+        const navContainer = document.querySelector('nav .container');
+        const connectHtml = `
+            <div style="display: flex; align-items: center; margin-right: auto;">
+                <button id="connectSheetsButton" class="btn" style="background-color: #4CAF50;">
+                    <i class="fas fa-sync-alt"></i> الاتصال بـ Google Sheets
+                </button>
+                <span id="connectionStatus" style="margin-right: 10px; color: #e74c3c;">
+                    <i class="fas fa-times-circle"></i> غير متصل
+                </span>
+            </div>
+        `;
+        navContainer.insertAdjacentHTML('afterbegin', connectHtml);
+        
+        // إعادة تعيين event listeners
+        document.getElementById('connectSheetsButton').addEventListener('click', async () => {
+            if (isConnectedToSheets) {
+                await syncAllDataWithSheets();
+            } else {
+                await connectToGoogleSheets();
+            }
+        });
+    }
+});
+        // فحص حالة الاتصال بشكل دوري
+setInterval(async () => {
+    if (isConnectedToSheets) {
+        try {
+            // اختبار اتصال بسيط
+            await gapi.client.sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: 'students!A1:A1',
+            });
+        } catch (error) {
+            console.log('فقدان الاتصال مع Google Sheets');
+            updateConnectionStatus(false);
+        }
+    }
+}, 30000); // فحص كل 30 ثانية
     </script>
 </body>
 </html>
+
 
 
 
