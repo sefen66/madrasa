@@ -328,8 +328,7 @@
             </ul>
         </div>
     </nav>
-    <!-- في قسم navigation داخل وسم <nav> -->
-
+    
     <div class="container">
         <!-- قسم إدارة الطلاب -->
         <section id="students" class="section active">
@@ -483,29 +482,14 @@
 
     <script>
         // للوصول إلى البيانات الخاصة، تحتاج إلى استخدام OAuth 2.0
-// تأكد من أنك تقوم بتهيئة API بشكل صحيح
+const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
-
-        // للوصول إلى البيانات الخاصة، تحتاج إلى استخدام OAuth 2.0
-// تأكد من أنك تقوم بتهيئة API بشكل صحيح
-async function connectToGoogleSheets() {
-  try {
-    await gapi.client.init({
-      apiKey: API_KEY,
-      discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-      scope: 'https://www.googleapis.com/auth/spreadsheets'
-    });
-    
-    console.log('تم الاتصال بنجاح مع Google Sheets API');
-    return true;
-  } catch (error) {
-    console.error('خطأ في الاتصال:', error);
-    return false;
-  }
-}
+// function authenticateWithOAuth() {
+//   // تنفيذ تدفق مصادقة OAuth 2.0 هنا
+// }
         const SPREADSHEET_ID = '1vBwAEm_EFU_vUt-hwBhv22TuqL2MxEz_bSXI75_4Mas';
 const CLIENT_ID = '15653801839-f6nseio1vfd9on6p9002a4dde2jlf4bs.apps.googleusercontent.com';
-const API_KEY = 'AIzaSyC_Iix8eXx4rkJBHV1tBkEJFChtdN7yUsw';
+const API_KEY = 'AIzaSyCLaOsug4f5NLONaOJuJZ2ROWT5U4hDYQE';
 
 // دالة للربط مع Google Sheets
 function connectToGoogleSheets() {
@@ -525,16 +509,13 @@ function connectToGoogleSheets() {
   });
 }
 
-
-<button onclick="connectToGoogleSheets()">إرسال بيانات للشيت</button>
-
 // دالة لتحميل البيانات من Google Sheets
 async function loadDataFromSheets() {
   try {
     // تحميل بيانات الطلاب
     const studentsResponse = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'students!A2:F',
+      range: 'الطلاب!A2:F',
     });
     
     if (studentsResponse.result.values) {
@@ -553,7 +534,7 @@ async function loadDataFromSheets() {
     // تحميل بيانات الأسابيع
     const weeksResponse = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'weeks!A2:C',
+      range: 'الأسابيع!A2:C',
     });
 
     if (weeksResponse.result.values) {
@@ -569,7 +550,7 @@ async function loadDataFromSheets() {
     // تحميل بيانات الحضور
     const attendanceResponse = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'attendance!A2:D',
+      range: 'الحضور!A2:D',
     });
 
     if (attendanceResponse.result.values) {
@@ -600,7 +581,7 @@ async function addStudentToSheet(student) {
   try {
     const response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'students!A:A',
+      range: 'الطلاب!A:A',
     });
 
     const nextRow = response.result.values ? response.result.values.length + 1 : 2;
@@ -618,7 +599,7 @@ async function addStudentToSheet(student) {
 
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `students!A${nextRow}:F${nextRow}`,
+      range: `الطلاب!A${nextRow}:F${nextRow}`,
       valueInputOption: 'USER_ENTERED',
       resource: { values }
     });
@@ -635,7 +616,7 @@ async function addWeekToSheet(week) {
   try {
     const response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'weeks!A:A',
+      range: 'الأسابيع!A:A',
     });
 
     const nextRow = response.result.values ? response.result.values.length + 1 : 2;
@@ -646,7 +627,7 @@ async function addWeekToSheet(week) {
 
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `weeks!A${nextRow}:C${nextRow}`,
+      range: `الأسابيع!A${nextRow}:C${nextRow}`,
       valueInputOption: 'USER_ENTERED',
       resource: { values }
     });
@@ -663,7 +644,7 @@ async function addAttendanceToSheet(attendanceData) {
   try {
     const response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'attendance!A:A',
+      range: 'الحضور!A:A',
     });
 
     const nextRow = response.result.values ? response.result.values.length + 1 : 2;
@@ -679,7 +660,7 @@ async function addAttendanceToSheet(attendanceData) {
 
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `attendance!A${nextRow}:D${nextRow}`,
+      range: `الحضور!A${nextRow}:D${nextRow}`,
       valueInputOption: 'USER_ENTERED',
       resource: { values }
     });
@@ -1096,57 +1077,10 @@ loadGAPI();
             updateWeekSelect();
             updateReportWeekSelect();
         });
-        // دالة تعديل الطالب
-// دالة للتحقق من صلاحيات التعديل
-async function checkWritePermissions() {
-  try {
-    // محاولة إجراء عملية كتابة بسيطة
-    const testResponse = await gapi.client.sheets.spreadsheets.values.update({
-      spreadsheetId: SPREADSHEET_ID,
-      range: 'test!A1',
-      valueInputOption: 'USER_ENTERED',
-      resource: { values: [['test']] }
-    });
-    
-    console.log('صلاحيات الكتابة تعمل بشكل صحيح');
-    return true;
-  } catch (error) {
-    console.error('خطأ في صلاحيات الكتابة:', error);
-    
-    // تحليل نوع الخطأ
-    if (error.status === 401) {
-      alert('خطأ في المصادقة. تأكد من إعدادات مفتاح API في Google Cloud Console.');
-    } else if (error.status === 403) {
-      alert('خطأ في الصلاحيات. تأكد من مشاركة الجدول مع الحساب المناسب.');
-    } else {
-      alert(`خطأ غير متوقع: ${error.result?.error?.message || error.message}`);
-    }
-    
-    return false;
-  }
-}
-
-// استخدام الدالة قبل محاولة التعديل
-document.getElementById('studentForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  
-  // التحقق من الصلاحيات أولاً
-  const hasPermissions = await checkWritePermissions();
-  if (!hasPermissions) {
-    return;
-  }
-  
-  // باقي الكود...
-});
-        
-  // حالة الاتصال
-
-
-
-
     </script>
 </body>
 </html>
+
 
 
 
