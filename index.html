@@ -579,10 +579,26 @@ async function loadDataFromSheets() {
 // دالة لإضافة طالب إلى Google Sheets
 async function addStudentToSheet(student) {
   try {
-    const response = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: 'students!A:A',
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxydV0S60-H8hX3FX_POie4EyAndQMwgww3DjlpEPs/dev'; // حط هنا رابط الـ Web App
+    // أضف token لو فعلته في Apps Script
+    const payload = Object.assign({}, student, { token: 'put-a-short-secret-here' });
+
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
+
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Unknown error');
+    console.log('تمت المزامنة مع Google Sheets بنجاح');
+    return json;
+  } catch (err) {
+    console.error('خطأ في المزامنة مع Web App:', err);
+    throw err;
+  }
+}
+
 
     const nextRow = response.result.values ? response.result.values.length + 1 : 2;
 
@@ -1080,6 +1096,7 @@ loadGAPI();
     </script>
 </body>
 </html>
+
 
 
 
