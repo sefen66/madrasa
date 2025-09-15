@@ -1077,9 +1077,251 @@ loadGAPI();
             updateWeekSelect();
             updateReportWeekSelect();
         });
+        // دالة تعديل الطالب
+function editStudent(id) {
+    const student = students.find(s => s.id === id);
+    if (!student) return;
+    
+    // تعبئة النموذج ببيانات الطالب
+    document.getElementById('studentName').value = student.name;
+    document.getElementById('guardianName').value = student.guardian;
+    document.getElementById('studentPhone').value = student.studentPhone || '';
+    document.getElementById('fatherPhone').value = student.fatherPhone;
+    document.getElementById('motherPhone').value = student.motherPhone;
+    
+    // تغيير نص زر الإضافة إلى "تحديث"
+    const submitButton = document.querySelector('#studentForm button[type="submit"]');
+    submitButton.textContent = 'تحديث الطالب';
+    
+    // إضافة خاصية data-edit-id لتخزين معرف الطالب الذي يتم تعديله
+    document.getElementById('studentForm').setAttribute('data-edit-id', id);
+    
+    // تمرير للأعلى لرؤية النموذج
+    document.getElementById('studentForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+// دالة حذف الطالب
+function deleteStudent(id) {
+    if (confirm('هل أنت متأكد من حذف هذا الطالب؟')) {
+        students = students.filter(student => student.id !== id);
+        localStorage.setItem('students', JSON.stringify(students));
+        renderStudentsList();
+        
+        // إذا كان متصلاً بـ Google Sheets، حاول حذفه من هناك أيضاً
+        if (typeof gapi !== 'undefined' && gapi.client) {
+            deleteStudentFromSheet(id);
+        }
+    }
+}
+
+// دالة حذف أسبوع
+function deleteWeek(id) {
+    if (confirm('هل أنت متأكد من حذف هذا الأسبوع؟ سيتم حذف جميع سجلات الحضور المرتبطة به.')) {
+        weeks = weeks.filter(week => week.id !== id);
+        localStorage.setItem('weeks', JSON.stringify(weeks));
+        
+        delete attendance[id];
+        localStorage.setItem('attendance', JSON.stringify(attendance));
+        
+        renderWeeksList();
+        
+        // إذا كان متصلاً بـ Google Sheets، حاول حذفه من هناك أيضاً
+        if (typeof gapi !== 'undefined' && gapi.client) {
+            deleteWeekFromSheet(id);
+        }
+    }
+}
+
+// دالة حذف طالب من Google Sheets
+async function deleteStudentFromSheet(studentId) {
+    try {
+        // جلب جميع البيانات للعثور على صف الطالب
+        const response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'students!A2:F',
+        });
+        
+        if (response.result.values) {
+            // البحث عن صف الطالب
+            let rowIndex = -1;
+            for (let i = 0; i < response.result.values.length; i++) {
+                if (response.result.values[i][0] == studentId) {
+                    rowIndex = i + 2; // +2 لأن الصفوف تبدأ من 1 والبيانات من الصف 2
+                    break;
+                }
+            }
+            
+            if (rowIndex !== -1) {
+                // مسح بيانات الصف (نتركه فارغاً بدلاً من حذف الصف تماماً)
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `students!A${rowIndex}:F${rowIndex}`,
+                    valueInputOption: 'USER_ENTERED',
+                    resource: { values: [['', '', '', '', '', '']] }
+                });
+                
+                console.log('تم حذف الطالب من Google Sheets');
+            }
+        }
+    } catch (error) {
+        console.error('خطأ في حذف الطالب من Google Sheets:', error);
+    }
+}
+
+// دالة حذف أسبوع من Google Sheets
+async function deleteWeekFromSheet(weekId) {
+    try {
+        // جلب جميع البيانات للعثور على صف الأسبوع
+        const response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'weeks!A2:C',
+        });
+        
+        if (response.result.values) {
+            // البحث عن صف الأسبوع
+            let rowIndex = -1;
+            for (let i = 0; i < response.result.values.length; i++) {
+                if (response.result.values[i][0] == weekId) {
+                    rowIndex = i + 2; // +2 لأن الصفوف تبدأ من 1 والبيانات من الصف 2
+                    break;
+                }
+            }
+            
+            if (rowIndex !== -1) {
+                // مسح بيانات الصف
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `weeks!A${rowIndex}:C${rowIndex}`,
+                    valueInputOption: 'USER_ENTERED',
+                    resource: { values: [['', '', '']] }
+                });
+                
+                console.log('تم حذف الأسبوع من Google Sheets');
+            }
+        }
+    } catch (error) {
+        console.error('خطأ في حذف الأسبوع من Google Sheets:', error);
+    }
+}
+
+// تعديل دالة إضافة الطالب لدعم التعديل أيضاً
+document.getElementById('studentForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const editId = document.getElementById('studentForm').getAttribute('data-edit-id');
+    const submitButton = document.querySelector('#studentForm button[type="submit"]');
+    
+    const studentData = {
+        name: document.getElementById('studentName').value,
+        guardian: document.getElementById('guardianName').value,
+        studentPhone: document.getElementById('studentPhone').value,
+        fatherPhone: document.getElementById('fatherPhone').value,
+        motherPhone: document.getElementById('motherPhone').value
+    };
+    
+    if (editId) {
+        // وضع التعديل: تحديث الطالب الموجود
+        const studentIndex = students.findIndex(s => s.id == editId);
+        if (studentIndex !== -1) {
+            students[studentIndex] = { ...students[studentIndex], ...studentData };
+            localStorage.setItem('students', JSON.stringify(students));
+            
+            // إذا كان متصلاً بـ Google Sheets، حاول التحديث هناك أيضاً
+            if (typeof gapi !== 'undefined' && gapi.client) {
+                try {
+                    await updateStudentInSheet(students[studentIndex]);
+                    alert('تم تحديث الطالب ومزامنة البيانات مع Google Sheets بنجاح!');
+                } catch (error) {
+                    console.error('خطأ في المزامنة:', error);
+                    alert('تم تحديث الطالب ولكن حدث خطأ في المزامنة مع Google Sheets.');
+                }
+            } else {
+                alert('تم تحديث الطالب محلياً.');
+            }
+            
+            // إزالة وضع التعديل
+            document.getElementById('studentForm').removeAttribute('data-edit-id');
+            submitButton.textContent = 'إضافة الطالب';
+        }
+    } else {
+        // وضع الإضافة: إضافة طالب جديد
+        const student = {
+            id: Date.now(),
+            ...studentData
+        };
+        
+        students.push(student);
+        localStorage.setItem('students', JSON.stringify(students));
+        
+        // إضافة إلى Google Sheets إذا كان متصلاً
+        if (typeof gapi !== 'undefined' && gapi.client) {
+            try {
+                await addStudentToSheet(student);
+                alert('تم إضافة الطالب ومزامنة البيانات مع Google Sheets بنجاح!');
+            } catch (error) {
+                console.error('خطأ في المزامنة:', error);
+                alert('تم إضافة الطالب ولكن حدث خطأ في المزامنة مع Google Sheets.');
+            }
+        } else {
+            alert('تم إضافة الطالب محلياً. يرجى الاتصال بـ Google Sheets للمزامنة.');
+        }
+    }
+    
+    renderStudentsList();
+    document.getElementById('studentForm').reset();
+});
+
+// دالة تحديث طالب في Google Sheets
+async function updateStudentInSheet(student) {
+    try {
+        // جلب جميع البيانات للعثور على صف الطالب
+        const response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'students!A2:F',
+        });
+        
+        if (response.result.values) {
+            // البحث عن صف الطالب
+            let rowIndex = -1;
+            for (let i = 0; i < response.result.values.length; i++) {
+                if (response.result.values[i][0] == student.id) {
+                    rowIndex = i + 2; // +2 لأن الصفوف تبدأ من 1 والبيانات من الصف 2
+                    break;
+                }
+            }
+            
+            if (rowIndex !== -1) {
+                // تحديث بيانات الصف
+                const values = [
+                    [
+                        student.id,
+                        student.name,
+                        student.guardian,
+                        student.studentPhone || '',
+                        student.fatherPhone,
+                        student.motherPhone
+                    ]
+                ];
+                
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `students!A${rowIndex}:F${rowIndex}`,
+                    valueInputOption: 'USER_ENTERED',
+                    resource: { values }
+                });
+                
+                console.log('تم تحديث الطالب في Google Sheets');
+            }
+        }
+    } catch (error) {
+        console.error('خطأ في تحديث الطالب في Google Sheets:', error);
+        throw error;
+    }
+}
     </script>
 </body>
 </html>
+
 
 
 
