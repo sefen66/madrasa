@@ -581,7 +581,7 @@ async function addStudentToSheet(student) {
   try {
     const response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'الطلاب!A:A',
+      range: 'students!A:A',
     });
 
     const nextRow = response.result.values ? response.result.values.length + 1 : 2;
@@ -599,7 +599,7 @@ async function addStudentToSheet(student) {
 
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `الطلاب!A${nextRow}:F${nextRow}`,
+      range: `students!A${nextRow}:F${nextRow}`,
       valueInputOption: 'USER_ENTERED',
       resource: { values }
     });
@@ -616,7 +616,7 @@ async function addWeekToSheet(week) {
   try {
     const response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'الأسابيع!A:A',
+      range: 'weeks!A:A',
     });
 
     const nextRow = response.result.values ? response.result.values.length + 1 : 2;
@@ -627,7 +627,7 @@ async function addWeekToSheet(week) {
 
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `الأسابيع!A${nextRow}:C${nextRow}`,
+      range: `weeks!A${nextRow}:C${nextRow}`,
       valueInputOption: 'USER_ENTERED',
       resource: { values }
     });
@@ -644,7 +644,7 @@ async function addAttendanceToSheet(attendanceData) {
   try {
     const response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'الحضور!A:A',
+      range: 'attendance!A:A',
     });
 
     const nextRow = response.result.values ? response.result.values.length + 1 : 2;
@@ -660,7 +660,7 @@ async function addAttendanceToSheet(attendanceData) {
 
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `الحضور!A${nextRow}:D${nextRow}`,
+      range: `attendance!A${nextRow}:D${nextRow}`,
       valueInputOption: 'USER_ENTERED',
       resource: { values }
     });
@@ -1080,6 +1080,7 @@ loadGAPI();
     </script>
 </body>
 </html>
+
 
 
 
